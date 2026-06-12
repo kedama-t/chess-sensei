@@ -27,7 +27,10 @@ bun run dev
 
 推奨: [litert-community/gemma-4-E2B-it-litert-lm](https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm) の `gemma-4-E2B-it-web.task`（非ゲートなので URL から直接ロード可能）
 
-WebGPU 対応ブラウザ（Chrome / Edge / Safari 26+）が必要です。
+### 推論バックエンド
+
+- **GPU（WebGPU）** — 推奨。Chrome / Edge / Safari 26+ で利用可能
+- **CPU** — WebGPU 非対応ブラウザ向け。CPU 対応モデル（int4/int8 量子化の `.task` など）が必要で、GPU 用（web 版）の `.task` は動作しません。読み込み画面でバックエンドを選択できます（デフォルトは自動判定）
 
 ## デプロイ
 

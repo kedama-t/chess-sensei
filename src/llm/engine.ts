@@ -9,7 +9,20 @@ export type LoadProgress = {
   total?: number;
 };
 
+export type Backend = "auto" | "GPU" | "CPU";
+
 let llm: LlmInference | null = null;
+
+/** WebGPU が利用可能か */
+export function hasWebGpu(): boolean {
+  return typeof navigator !== "undefined" && "gpu" in navigator;
+}
+
+/** auto を実際のデリゲートに解決する */
+function resolveDelegate(backend: Backend): "GPU" | "CPU" {
+  if (backend === "auto") return hasWebGpu() ? "GPU" : "CPU";
+  return backend;
+}
 
 export function isReady(): boolean {
   return llm !== null;
@@ -19,7 +32,14 @@ export function isReady(): boolean {
 export async function loadModel(
   source: string | File,
   onProgress: (p: LoadProgress) => void,
+  backend: Backend = "auto",
 ): Promise<void> {
+  const delegate = resolveDelegate(backend);
+  if (delegate === "GPU" && !hasWebGpu()) {
+    throw new Error(
+      "このブラウザは WebGPU に未対応です。バックエンドを CPU にして、CPU 対応モデルを読み込んでください。",
+    );
+  }
   onProgress({ phase: "wasm" });
   const genai = await FilesetResolver.forGenAiTasks(WASM_URL);
 
@@ -33,7 +53,7 @@ export async function loadModel(
 
   onProgress({ phase: "init" });
   llm = await LlmInference.createFromOptions(genai, {
-    baseOptions: { modelAssetPath: modelBlobUrl },
+    baseOptions: { modelAssetPath: modelBlobUrl, delegate },
     maxTokens: 1280,
     temperature: 0.6,
     topK: 40,
