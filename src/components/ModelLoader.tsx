@@ -1,29 +1,26 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
+  DEFAULT_MODEL_URL,
   hasWebGpu,
   loadModel,
-  type Backend,
   type LoadProgress,
 } from "../llm/engine";
 
-const DEFAULT_URL =
-  "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it-web.task";
-
 type Props = { onReady: () => void };
 
-/** Gemma モデルの読み込み画面（URL またはローカルファイル） */
+/** Gemma 軽量モデルを起動時に自動ロードする画面（失敗時のみ手動フォールバック） */
 export function ModelLoader({ onReady }: Props) {
-  const [url, setUrl] = useState(DEFAULT_URL);
-  const [backend, setBackend] = useState<Backend>("auto");
   const [progress, setProgress] = useState<LoadProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const started = useRef(false);
   const webGpu = hasWebGpu();
 
   const start = async (source: string | File) => {
     setError(null);
+    setProgress({ phase: "wasm" });
     try {
-      await loadModel(source, setProgress, backend);
+      await loadModel(source, setProgress, "auto");
       onReady();
     } catch (e) {
       setProgress(null);
@@ -31,7 +28,13 @@ export function ModelLoader({ onReady }: Props) {
     }
   };
 
-  const loading = progress !== null;
+  // 起動時に既定の軽量モデルを自動ロード
+  useEffect(() => {
+    if (started.current) return;
+    started.current = true;
+    void start(DEFAULT_MODEL_URL);
+  }, []);
+
   const pct =
     progress?.phase === "download" && progress.total
       ? Math.round((progress.loaded! / progress.total) * 100)
@@ -39,7 +42,8 @@ export function ModelLoader({ onReady }: Props) {
 
   const phaseLabel = {
     wasm: "ランタイムを準備中…",
-    download: pct !== null ? `モデルをダウンロード中… ${pct}%` : "モデルをダウンロード中…",
+    download:
+      pct !== null ? `モデルをダウンロード中… ${pct}%` : "モデルをダウンロード中…",
     init: "モデルを初期化中…（しばらくかかります）",
     ready: "準備完了！",
   }[progress?.phase ?? "wasm"];
@@ -52,7 +56,7 @@ export function ModelLoader({ onReady }: Props) {
         モデルはブラウザ内だけで動き、外部に送信されません。
       </p>
 
-      {loading ? (
+      {error === null ? (
         <div className="loader-progress">
           <p>{phaseLabel}</p>
           {pct !== null && (
@@ -60,40 +64,19 @@ export function ModelLoader({ onReady }: Props) {
               <div className="bar-fill" style={{ width: `${pct}%` }} />
             </div>
           )}
+          <p className="loader-note">
+            初回はモデル（約 2GB）をダウンロードします。2回目以降は
+            ブラウザにキャッシュされ、すぐに起動します。
+            {!webGpu &&
+              " このブラウザは WebGPU 非対応のため CPU で動作します。"}
+          </p>
         </div>
       ) : (
         <>
-          <label className="loader-label">
-            モデル URL（Gemma の .task / .litertlm）
-            <input
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://…/gemma.task"
-            />
-          </label>
-          <label className="loader-label">
-            推論バックエンド
-            <select
-              value={backend}
-              onChange={(e) => setBackend(e.target.value as Backend)}
-            >
-              <option value="auto">
-                自動（{webGpu ? "GPU を使用" : "WebGPU 非対応のため CPU"}）
-              </option>
-              <option value="GPU" disabled={!webGpu}>
-                GPU（WebGPU）
-              </option>
-              <option value="CPU">CPU</option>
-            </select>
-          </label>
-          {(backend === "CPU" || (backend === "auto" && !webGpu)) && (
-            <p className="loader-note">
-              CPU 推論には CPU 対応のモデル（int4/int8 量子化の .task など）が
-              必要です。GPU 用（web 版）の .task は動作しません。
-            </p>
-          )}
-          <button className="primary" onClick={() => start(url)}>
-            URL から読み込む
+          <p className="error">モデルの自動読み込みに失敗しました。</p>
+          <p className="error">{error}</p>
+          <button className="primary" onClick={() => start(DEFAULT_MODEL_URL)}>
+            再試行
           </button>
           <button onClick={() => fileRef.current?.click()}>
             ローカルファイルを選択
@@ -105,17 +88,15 @@ export function ModelLoader({ onReady }: Props) {
             hidden
             onChange={(e) => {
               const f = e.target.files?.[0];
-              if (f) start(f);
+              if (f) void start(f);
             }}
           />
           <p className="loader-note">
-            Hugging Face のモデルは認証が必要な場合があります。その場合は一度
+            ダウンロードに失敗する場合は、Gemma の .task モデルを手動で
             ダウンロードして「ローカルファイルを選択」から読み込んでください。
-            2回目以降はブラウザにキャッシュされます。
           </p>
         </>
       )}
-      {error && <p className="error">{error}</p>}
     </div>
   );
 }
