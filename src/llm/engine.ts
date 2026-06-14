@@ -3,6 +3,15 @@ import { FilesetResolver, LlmInference } from "@mediapipe/tasks-genai";
 const WASM_URL =
   "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-genai@0.10.21/wasm";
 
+/**
+ * 自動ロードする Gemma 軽量モデル（MediaPipe LLM Inference 用）。
+ * Gemma 3n E2B の web 版 .task（約 2GB）。非ゲートなので認証なしで
+ * URL から直接ロードできる。1B などより軽量なモデルは HF でゲートされ
+ * 認証が必要なため、認証不要で自動ロードできる中ではこれが最軽量。
+ */
+export const DEFAULT_MODEL_URL =
+  "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it-web.task";
+
 export type LoadProgress = {
   phase: "wasm" | "download" | "init" | "ready";
   loaded?: number;

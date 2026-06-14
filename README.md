@@ -20,17 +20,19 @@ bun run dev
 
 ## モデル
 
-初回起動時に Gemma の `.task` / `.litertlm` モデルを読み込みます。
+モデルの指定は不要です。初回起動時に MediaPipe（LLM Inference）が Gemma の
+軽量モデルを**自動でダウンロード・初期化**します。
 
-- URL 指定（CORS 許可されたホストが必要。読み込み後は Cache API にキャッシュ）
-- ローカルファイル選択（Hugging Face から手動ダウンロードした場合はこちら）
-
-推奨: [litert-community/gemma-4-E2B-it-litert-lm](https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm) の `gemma-4-E2B-it-web.task`（非ゲートなので URL から直接ロード可能）
+- 既定モデル: [litert-community/gemma-4-E2B-it-litert-lm](https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm) の `gemma-4-E2B-it-web.task`（Gemma 3n E2B / 約 2GB）
+- 非ゲートなので認証なしで URL から直接ロード可能。より軽量な Gemma 1B などは Hugging Face でゲートされ認証が必要なため、認証不要で自動ロードできる中ではこれが最軽量
+- ダウンロードしたモデルは Cache API にキャッシュされ、2回目以降はすぐ起動
+- ダウンロードに失敗した場合のみ、手動で `.task` を読み込むフォールバックを表示
 
 ### 推論バックエンド
 
-- **GPU（WebGPU）** — 推奨。Chrome / Edge / Safari 26+ で利用可能
-- **CPU** — WebGPU 非対応ブラウザ向け。CPU 対応モデル（int4/int8 量子化の `.task` など）が必要で、GPU 用（web 版）の `.task` は動作しません。読み込み画面でバックエンドを選択できます（デフォルトは自動判定）
+WebGPU が使えれば GPU、なければ CPU を自動選択します（Chrome / Edge / Safari 26+ で WebGPU 利用可）。
+既定モデルは web（GPU）版のため、WebGPU 非対応環境では動作しません。その場合は
+フォールバックから CPU 対応モデル（int4/int8 量子化の `.task` など）を読み込んでください。
 
 ## デプロイ
 
