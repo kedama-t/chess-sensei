@@ -5,7 +5,7 @@
     "": {
       "name": "chess-sensei",
       "dependencies": {
-        "@mediapipe/tasks-genai": "^0.10.21",
+        "@mediapipe/tasks-genai": "^0.10.27",
         "chess.js": "^1.0.0",
         "react": "^18.3.1",
         "react-chessboard": "^4.7.2",
