@@ -175,7 +175,6 @@ export async function generate(
   if (!llm) throw new Error("モデルが読み込まれていません");
   const { onToken, sampling } = opts;
   await applySampling(sampling);
-  llm.clearCancelSignals();
 
   return new Promise((resolve, reject) => {
     let acc = "";
@@ -188,7 +187,8 @@ export async function generate(
           resolve(trimLoop(acc));
           return;
         }
-        if (!cancelled && loopUnitEnd(acc)) {
+        // ループ検出時は生成を打ち切る（このランタイムに無い API は呼ばない）
+        if (!cancelled && loopUnitEnd(acc) && typeof llm!.cancelProcessing === "function") {
           cancelled = true;
           llm!.cancelProcessing();
         }
