@@ -67,9 +67,10 @@ export async function loadModel(
   llm = await LlmInference.createFromOptions(genai, {
     baseOptions: { modelAssetPath: modelBlobUrl, delegate },
     maxTokens: 1280,
-    temperature: 0.6,
-    topK: 40,
+    temperature: 0.3,
+    topK: 20,
   });
+  cur = { temperature: 0.3, topK: 20 };
   onProgress({ phase: "ready" });
 }
 
@@ -118,19 +119,79 @@ function toGemmaChat(prompt: string): string {
   return `<start_of_turn>user\n${prompt}<end_of_turn>\n<start_of_turn>model\n`;
 }
 
-/** ストリーミング生成。onToken で逐次テキストを返す */
-export function generate(
+/** タスクごとのサンプリング設定 */
+export type Sampling = { temperature: number; topK: number };
+
+let cur: Sampling | null = null;
+
+/** 直近の設定と異なる場合のみ setOptions を呼ぶ（再初期化コストを避ける） */
+async function applySampling(s?: Sampling): Promise<void> {
+  if (!s || !llm) return;
+  if (cur && cur.temperature === s.temperature && cur.topK === s.topK) return;
+  try {
+    await llm.setOptions({ temperature: s.temperature, topK: s.topK });
+    cur = s;
+  } catch {
+    // 設定変更に失敗しても現状の設定で生成を続行する
+  }
+}
+
+/** 末尾が短い単位の繰り返しになっていればループとみなす */
+function loopUnitEnd(text: string): number {
+  const tail = text.slice(-280);
+  if (tail.length < 60) return 0;
+  for (let p = 2; p <= 40; p++) {
+    const unit = tail.slice(-p);
+    if (!unit.trim()) continue;
+    let count = 1;
+    let i = tail.length - p;
+    while (i - p >= 0 && tail.slice(i - p, i) === unit) {
+      count++;
+      i -= p;
+    }
+    if (count >= 4) return p;
+  }
+  return 0;
+}
+
+/** 繰り返している末尾を 1 単位だけ残して削る */
+function trimLoop(text: string): string {
+  const p = loopUnitEnd(text);
+  if (!p) return text;
+  const unit = text.slice(-p);
+  let i = text.length - p;
+  while (i - p >= 0 && text.slice(i - p, i) === unit) i -= p;
+  return text.slice(0, i + p).trimEnd();
+}
+
+/**
+ * ストリーミング生成。onToken で逐次テキストを返す。
+ * 末尾の繰り返し（トークンループ）を検出したら生成を打ち切る。
+ */
+export async function generate(
   prompt: string,
-  onToken?: (partial: string) => void,
+  opts: { onToken?: (partial: string) => void; sampling?: Sampling } = {},
 ): Promise<string> {
   if (!llm) throw new Error("モデルが読み込まれていません");
+  const { onToken, sampling } = opts;
+  await applySampling(sampling);
+  llm.clearCancelSignals();
+
   return new Promise((resolve, reject) => {
     let acc = "";
+    let cancelled = false;
     try {
       llm!.generateResponse(toGemmaChat(prompt), (partial, done) => {
         acc += partial;
         onToken?.(acc);
-        if (done) resolve(acc);
+        if (done) {
+          resolve(trimLoop(acc));
+          return;
+        }
+        if (!cancelled && loopUnitEnd(acc)) {
+          cancelled = true;
+          llm!.cancelProcessing();
+        }
       });
     } catch (e) {
       reject(e);

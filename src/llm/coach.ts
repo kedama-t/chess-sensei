@@ -1,6 +1,11 @@
 import { Chess } from "chess.js";
-import { generate } from "./engine";
+import { generate, type Sampling } from "./engine";
 import { movePrompt, advicePrompt, hintPrompt } from "./prompts";
+
+// 指し手は合法手で検証するためループ回避優先、解説はハルシネーション抑制で低め
+const MOVE_SAMPLING: Sampling = { temperature: 0.4, topK: 20 };
+const ADVICE_SAMPLING: Sampling = { temperature: 0.25, topK: 15 };
+const HINT_SAMPLING: Sampling = { temperature: 0.3, topK: 20 };
 
 export type AiMoveResult = {
   san: string;
@@ -14,7 +19,10 @@ export async function pickAiMove(
   onToken?: (text: string) => void,
 ): Promise<AiMoveResult> {
   const legal = game.moves();
-  const raw = await generate(movePrompt(game), onToken);
+  const raw = await generate(movePrompt(game), {
+    onToken,
+    sampling: MOVE_SAMPLING,
+  });
 
   const thinkMatch = raw.match(/思考[:：]\s*([\s\S]*?)(?=指し手[:：]|$)/);
   const moveMatch = raw.match(/指し手[:：]\s*([^\s。]+)/);
@@ -51,7 +59,10 @@ export function adviseOnMove(
   userMove: string,
   onToken?: (text: string) => void,
 ): Promise<string> {
-  return generate(advicePrompt(game, userMove), onToken);
+  return generate(advicePrompt(game, userMove), {
+    onToken,
+    sampling: ADVICE_SAMPLING,
+  });
 }
 
 /** 現局面のヒント解説を生成 */
@@ -59,5 +70,5 @@ export function explainPosition(
   game: Chess,
   onToken?: (text: string) => void,
 ): Promise<string> {
-  return generate(hintPrompt(game), onToken);
+  return generate(hintPrompt(game), { onToken, sampling: HINT_SAMPLING });
 }
