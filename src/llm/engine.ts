@@ -1,7 +1,10 @@
 import { FilesetResolver, LlmInference } from "@mediapipe/tasks-genai";
 
 const WASM_URL =
-  "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-genai@0.10.21/wasm";
+  "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-genai@0.10.27/wasm";
+
+/** モデルキャッシュ名。破損キャッシュを捨てたいときはバージョンを上げる */
+const MODEL_CACHE = "chess-sensei-model-v2";
 
 /**
  * 自動ロードする Gemma 軽量モデル（MediaPipe LLM Inference 用）。
@@ -56,8 +59,8 @@ export async function loadModel(
   if (source instanceof File) {
     modelBlobUrl = URL.createObjectURL(source);
   } else {
-    const buf = await fetchWithProgress(source, onProgress);
-    modelBlobUrl = URL.createObjectURL(new Blob([buf]));
+    const blob = await fetchWithProgress(source, onProgress);
+    modelBlobUrl = URL.createObjectURL(blob);
   }
 
   onProgress({ phase: "init" });
@@ -74,13 +77,13 @@ export async function loadModel(
 async function fetchWithProgress(
   url: string,
   onProgress: (p: LoadProgress) => void,
-): Promise<ArrayBuffer> {
-  const cache = await caches.open("chess-sensei-model").catch(() => null);
+): Promise<Blob> {
+  const cache = await caches.open(MODEL_CACHE).catch(() => null);
   if (cache) {
     const hit = await cache.match(url);
     if (hit) {
       onProgress({ phase: "download", loaded: 1, total: 1 });
-      return hit.arrayBuffer();
+      return hit.blob();
     }
   }
 
@@ -97,11 +100,17 @@ async function fetchWithProgress(
     loaded += value.length;
     onProgress({ phase: "download", loaded, total });
   }
+  // ダウンロードが途中で切れていないか検証（破損キャッシュを防ぐ）
+  if (total && loaded !== total) {
+    throw new Error(
+      `モデルのダウンロードが不完全です（${loaded}/${total} バイト）。再試行してください。`,
+    );
+  }
   const blob = new Blob(chunks as BlobPart[]);
   if (cache) {
     await cache.put(url, new Response(blob)).catch(() => {});
   }
-  return blob.arrayBuffer();
+  return blob;
 }
 
 /** Gemma のチャットテンプレートでプロンプトを囲む */
