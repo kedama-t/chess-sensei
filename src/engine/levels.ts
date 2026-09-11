@@ -19,3 +19,6 @@ export const LEVEL_IDS: LevelId[] = ["easy", "normal", "hard", "max"];
 
 /** 講評・ヒント用の解析設定（対局の強さとは独立に常に最強で解析する） */
 export const ANALYSIS = { depth: 14, movetime: 1200, multiPv: 3 };
+
+/** 棋譜レビュー用の解析設定（全局面を解析するので対局中より軽くする） */
+export const GAME_REVIEW = { depth: 12, movetime: 600, multiPv: 1 };
