@@ -329,3 +329,18 @@ select {
 .review-cell.q-blunder .review-san { color: #ff7b7b; }
 
 .review-loss { color: var(--muted); font-size: 0.78rem; }
+
+/* ---- コーチタブ（Stockfish の分析 + AI 解説） ---- */
+.coach-section {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #3a3a56;
+}
+
+.coach-section h3 {
+  margin: 0 0 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}

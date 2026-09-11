@@ -20,7 +20,7 @@ import {
   type GameReview,
   type ReviewProgress,
 } from "./engine/gameReview";
-import { explainHint, explainReview, fallbackHint, fallbackReview } from "./llm/explain";
+import { describeHint, describeReview, explainHint, explainReview } from "./llm/explain";
 import { useLlm } from "./llm/useLlm";
 import { EvalBar } from "./components/EvalBar";
 import { LlmPanel } from "./components/LlmPanel";
@@ -37,6 +37,8 @@ const STATUS_LABEL: Record<GameStatus, string> = {
 };
 
 const GREETING = "白番はあなたです。駒を動かすと、Stockfish が応手と講評を返します。";
+
+const AI_FAILED = "（AI 解説を生成できませんでした）";
 
 /** 対局終了時の結果表示 */
 function resultLine(game: Chess): string {
@@ -60,7 +62,10 @@ export default function App() {
 
   const [tab, setTab] = useState<Tab>("coach");
   const [coachTitle, setCoachTitle] = useState("Chess Sensei");
+  // コーチタブは 3 段構成: お知らせ / Stockfish の分析 / AI 解説
   const [coachText, setCoachText] = useState(GREETING);
+  const [coachFacts, setCoachFacts] = useState("");
+  const [coachAi, setCoachAi] = useState("");
   const [busy, setBusy] = useState(false);
   const [explaining, setExplaining] = useState(false);
   const [arrow, setArrow] = useState<[Square, Square] | null>(null);
@@ -76,6 +81,14 @@ export default function App() {
   const seqRef = useRef(0);
   // 現局面の解析結果をキャッシュ（講評の「指す前の評価」として再利用する）
   const cacheRef = useRef<{ fen: string; promise: Promise<SearchResult> } | null>(null);
+
+  /** 解析結果ではないお知らせを表示する（分析・解説はクリアする） */
+  const showMessage = useCallback((title: string, text: string) => {
+    setCoachTitle(title);
+    setCoachText(text);
+    setCoachFacts("");
+    setCoachAi("");
+  }, []);
 
   const analyseFen = useCallback((fen: string): Promise<SearchResult> => {
     if (cacheRef.current?.fen !== fen) {
@@ -127,6 +140,8 @@ export default function App() {
       setGameReview(null);
       setCoachTitle(`${userSan} の講評`);
       setCoachText("Stockfish が解析しています…");
+      setCoachFacts("");
+      setCoachAi("");
 
       let result: MoveReview | null = null;
       try {
@@ -147,29 +162,32 @@ export default function App() {
 
         result = buildReview({ fenBefore, before, san: userSan, fenAfter, after, opponentSan });
         setReview(result);
-        setCoachText(fallbackReview(result));
+        setCoachText("");
+        setCoachFacts(describeReview(result));
         if (g.game.isGameOver()) {
           setCoachTitle(`${resultLine(g.game)}（「感想戦」タブで棋譜を振り返れます）`);
         }
       } catch (e) {
-        if (!stale()) setCoachText(`エラーが発生しました: ${e instanceof Error ? e.message : e}`);
+        if (!stale()) {
+          showMessage("エラー", `エラーが発生しました: ${e instanceof Error ? e.message : e}`);
+        }
       } finally {
         if (!stale()) setBusy(false);
       }
 
-      // 解説 AI が有効なときだけ、同じ解析結果を文章にしてもらう
+      // 解説 AI が有効なときは、同じ解析結果の説明文を下に足す
       if (!result || stale() || !llm.ready) return;
       setExplaining(true);
       try {
         const text = await explainReview(result, (t) => {
-          if (!stale()) setCoachText(t);
+          if (!stale()) setCoachAi(t);
         });
-        if (!stale()) setCoachText(text);
+        if (!stale()) setCoachAi(text ?? AI_FAILED);
       } finally {
         if (!stale()) setExplaining(false);
       }
     },
-    [analyseFen, g, level, llm.ready],
+    [analyseFen, g, level, llm.ready, showMessage],
   );
 
   const onDrop = useCallback(
@@ -195,9 +213,8 @@ export default function App() {
     setViewIndex(null);
     setViewFen(null);
     g.undo(g.turn === "w" ? 2 : 1);
-    setCoachTitle("まった");
-    setCoachText("一手戻しました。じっくり考え直しましょう。");
-  }, [g]);
+    showMessage("まった", "一手戻しました。じっくり考え直しましょう。");
+  }, [g, showMessage]);
 
   const askHint = useCallback(async () => {
     if (busy || !engineReady || g.game.isGameOver()) return;
@@ -205,8 +222,7 @@ export default function App() {
     const stale = () => seq !== seqRef.current;
     const fen = g.fen;
     setTab("coach");
-    setCoachTitle("ヒント");
-    setCoachText("Stockfish が候補手を探しています…");
+    showMessage("ヒント", "Stockfish が候補手を探しています…");
     try {
       const result = await analyseFen(fen);
       if (stale()) return;
@@ -217,7 +233,8 @@ export default function App() {
       };
       setAnalysis(result);
       setScore(facts.score);
-      setCoachText(fallbackHint(facts));
+      setCoachText("");
+      setCoachFacts(describeHint(facts));
       if (result.bestMove) {
         setArrow([result.bestMove.slice(0, 2) as Square, result.bestMove.slice(2, 4) as Square]);
       }
@@ -225,16 +242,16 @@ export default function App() {
       setExplaining(true);
       try {
         const text = await explainHint(facts, (t) => {
-          if (!stale()) setCoachText(t);
+          if (!stale()) setCoachAi(t);
         });
-        if (!stale()) setCoachText(text);
+        if (!stale()) setCoachAi(text ?? AI_FAILED);
       } finally {
         if (!stale()) setExplaining(false);
       }
     } catch (e) {
-      if (!stale()) setCoachText(`エラー: ${e instanceof Error ? e.message : e}`);
+      if (!stale()) showMessage("ヒント", `エラー: ${e instanceof Error ? e.message : e}`);
     }
-  }, [busy, engineReady, g, analyseFen, llm.ready]);
+  }, [busy, engineReady, g, analyseFen, llm.ready, showMessage]);
 
   const reset = useCallback(() => {
     seqRef.current++;
@@ -251,9 +268,8 @@ export default function App() {
     cacheRef.current = null;
     g.reset();
     void engine.newGame().catch(() => undefined);
-    setCoachTitle("Chess Sensei");
-    setCoachText(`新しい対局です。${GREETING}`);
-  }, [g]);
+    showMessage("Chess Sensei", `新しい対局です。${GREETING}`);
+  }, [g, showMessage]);
 
   /** 棋譜全体を解析する */
   const startGameReview = useCallback(async () => {
@@ -277,11 +293,13 @@ export default function App() {
       });
       if (!stale()) setGameReview(result);
     } catch (e) {
-      if (!stale()) setCoachText(`レビューに失敗しました: ${e instanceof Error ? e.message : e}`);
+      if (!stale()) {
+        showMessage("感想戦", `レビューに失敗しました: ${e instanceof Error ? e.message : e}`);
+      }
     } finally {
       if (!stale()) setReviewProgress(null);
     }
-  }, [busy, engineReady, g.history]);
+  }, [busy, engineReady, g.history, showMessage]);
 
   const stopGameReview = useCallback(() => {
     cancelReview.current = true;
@@ -302,14 +320,16 @@ export default function App() {
       setArrow(sanToSquares(gr.fens[index], move.bestSan));
       setTab("coach");
       setCoachTitle(`${moveLabel(move)} の講評`);
-      setCoachText(fallbackReview(move));
+      setCoachText("");
+      setCoachFacts(describeReview(move));
+      setCoachAi("");
       if (!llm.ready) return;
       setExplaining(true);
       try {
         const text = await explainReview(move, (t) => {
-          if (!stale()) setCoachText(t);
+          if (!stale()) setCoachAi(t);
         });
-        if (!stale()) setCoachText(text);
+        if (!stale()) setCoachAi(text ?? AI_FAILED);
       } finally {
         if (!stale()) setExplaining(false);
       }
@@ -333,9 +353,8 @@ export default function App() {
     setBusy(false);
     setExplaining(false);
     setTab("coach");
-    setCoachTitle("感想戦");
-    setCoachText("この局面から指し直せます。別の手を試してみましょう。");
-  }, [g, gameReview, viewIndex]);
+    showMessage("感想戦", "この局面から指し直せます。別の手を試してみましょう。");
+  }, [g, gameReview, viewIndex, showMessage]);
 
   /** 本譜の最新局面に戻る */
   const backToGame = useCallback(() => {
@@ -345,9 +364,8 @@ export default function App() {
     setArrow(null);
     setReview(null);
     setExplaining(false);
-    setCoachTitle("Chess Sensei");
-    setCoachText("本譜の局面に戻りました。");
-  }, []);
+    showMessage("Chess Sensei", "本譜の局面に戻りました。");
+  }, [showMessage]);
 
   const statusText = STATUS_LABEL[g.status];
   const reviewing = reviewProgress !== null;
@@ -422,7 +440,19 @@ export default function App() {
             {tab === "coach" && (
               <>
                 <h2 className="coach-title">{coachTitle}</h2>
-                <p className="coach-text">{coachText}</p>
+                {coachText && <p className="coach-text">{coachText}</p>}
+                {coachFacts && (
+                  <section className="coach-section">
+                    <h3>♟ Stockfish の分析</h3>
+                    <p className="coach-text">{coachFacts}</p>
+                  </section>
+                )}
+                {(coachAi || explaining) && (
+                  <section className="coach-section">
+                    <h3>🗣 AI 解説{explaining && "（生成中…）"}</h3>
+                    <p className="coach-text">{coachAi || "…"}</p>
+                  </section>
+                )}
                 {viewFen !== null && (
                   <div className="llm-actions">
                     <button className="primary" onClick={resumeFromView}>
