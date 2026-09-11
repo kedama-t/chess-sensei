@@ -164,6 +164,9 @@ export function pieceName(letter: string | undefined): string | null {
 /** 1 手ぶんの講評データ。LLM にはこの事実だけを渡す */
 export type MoveReview = {
   color: Color;
+  /** 手を指す前後の局面（解説で盤面の特徴を調べるのに使う） */
+  fenBefore: string;
+  fenAfter: string;
   /** 指された手（SAN） */
   san: string;
   moveNumber: number;
@@ -226,6 +229,8 @@ export function buildReview(input: BuildReviewInput): MoveReview {
 
   return {
     color,
+    fenBefore,
+    fenAfter,
     san,
     moveNumber,
     quality: classify(cpLoss, isBest),

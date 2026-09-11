@@ -72,7 +72,8 @@ export async function loadModel(
   onProgress({ phase: "init" });
   llm = await LlmInference.createFromOptions(genai, {
     baseOptions: { modelAssetPath: modelBlobUrl, delegate },
-    maxTokens: 1024,
+    // 局面の事実を並べたぶんプロンプトが長いので余裕を持たせる
+    maxTokens: 1536,
     temperature: 0.3,
     topK: 20,
   });

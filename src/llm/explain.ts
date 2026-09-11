@@ -4,6 +4,7 @@ import {
   formatScore,
   type MoveReview,
 } from "../engine/analysis";
+import { describeLoose, loosePieces } from "../engine/features";
 import { generate, isReady, type Sampling } from "./runtime";
 import { hintPrompt, reviewPrompt, type HintFacts } from "./prompts";
 
@@ -55,6 +56,8 @@ export function describeReview(r: MoveReview): string {
     parts.push(`最善手は ${r.bestSan}（${r.cpLoss} センチポーンの差）。`);
     if (r.bestLine.length > 1) parts.push(`その読み筋: ${r.bestLine.join(" ")}`);
   }
+  const loose = loosePieces(r.fenAfter, r.color);
+  if (loose.length > 0) parts.push(`⚠ 取られそうな自分の駒: ${describeLoose(loose)}`);
   if (r.opponentSan) parts.push(`相手の応手: ${r.opponentSan}`);
   if (r.replyLine.length > 0 && r.san !== r.bestSan) {
     parts.push(`このあとの想定手順: ${r.replyLine.join(" ")}`);
@@ -66,6 +69,8 @@ export function describeReview(r: MoveReview): string {
 export function describeHint(h: HintFacts): string {
   const lines = [`形勢: ${formatScore(h.score)}（${describeAdvantage(h.score)}）`];
   if (h.inCheck) lines.push("チェックがかかっています。まずこれを解消しましょう。");
+  const loose = loosePieces(h.fen, "w");
+  if (loose.length > 0) lines.push(`⚠ 取られそうな自分の駒: ${describeLoose(loose)}`);
   lines.push("Stockfish の推奨手:");
   for (const [i, c] of h.candidates.entries()) {
     lines.push(`${i + 1}. ${c.san} — 評価 ${formatScore(c.scoreWhite)}／読み筋 ${c.line.join(" ")}`);

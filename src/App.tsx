@@ -227,6 +227,7 @@ export default function App() {
       const result = await analyseFen(fen);
       if (stale()) return;
       const facts = {
+        fen,
         score: mainScore(fen, result),
         candidates: candidates(fen, result, 3),
         inCheck: g.game.isCheck(),
