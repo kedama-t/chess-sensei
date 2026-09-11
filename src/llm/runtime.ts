@@ -1,3 +1,9 @@
+/**
+ * 解説文の生成に使うオンデバイス LLM（MediaPipe LLM Inference / Gemma）。
+ * 指し手の選択と評価は Stockfish が担当するため、この LLM は
+ * 「エンジンの解析結果を日本語で説明する」用途にだけ使う。未ロードでも
+ * アプリは動く（テンプレート文にフォールバックする）。
+ */
 import { FilesetResolver, LlmInference } from "@mediapipe/tasks-genai";
 
 const WASM_URL =
@@ -66,7 +72,7 @@ export async function loadModel(
   onProgress({ phase: "init" });
   llm = await LlmInference.createFromOptions(genai, {
     baseOptions: { modelAssetPath: modelBlobUrl, delegate },
-    maxTokens: 1280,
+    maxTokens: 1024,
     temperature: 0.3,
     topK: 20,
   });

@@ -132,42 +132,111 @@ button.primary { background: var(--accent); border-color: var(--accent); color: 
 
 .moves span { display: inline-block; min-width: 4.5em; }
 
-/* ---- モデルローダー ---- */
-.loader {
-  max-width: 480px;
-  margin: 0 auto;
-  padding: 48px 20px;
+/* ---- 評価バー ---- */
+.evalbar {
   display: flex;
-  flex-direction: column;
-  gap: 14px;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
 }
 
-.loader h1 { margin: 0; }
-.loader-sub, .loader-note { color: var(--muted); line-height: 1.6; font-size: 0.9rem; }
+.evalbar-track {
+  flex: 1;
+  height: 10px;
+  border-radius: 999px;
+  background: #11111c;
+  overflow: hidden;
+}
 
-.loader-label {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+.evalbar-white {
+  height: 100%;
+  background: #e8edf4;
+  transition: width 0.3s ease;
+}
+
+.evalbar-text {
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ---- 講評バッジ ---- */
+.badge {
+  border-radius: 999px;
+  padding: 2px 12px;
+  font-size: 0.85rem;
+  color: #fff;
+  background: #4a4a6a;
+}
+
+.badge.q-best { background: #2f9e63; }
+.badge.q-good { background: #4a8ad4; }
+.badge.q-inaccuracy { background: #c99a2e; }
+.badge.q-mistake { background: #d97730; }
+.badge.q-blunder { background: #cf4b4b; }
+
+.coach-title {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.muted { color: var(--muted); font-size: 0.85rem; margin: 0 0 8px; }
+
+/* ---- 解析タブ ---- */
+.lines {
+  margin: 0;
+  padding-left: 1.4em;
+  line-height: 1.8;
   font-size: 0.9rem;
 }
 
-.loader input[type="text"], .loader input:not([type]) {
+.lines-score {
+  display: inline-block;
+  min-width: 5em;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.lines-pv { word-break: break-word; }
+
+/* ---- 解説 AI パネル ---- */
+.llm-panel {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid #3a3a56;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.llm-line {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.llm-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+select {
   background: var(--panel);
+  color: var(--text);
   border: 1px solid #3a3a56;
   border-radius: 8px;
-  color: var(--text);
-  padding: 10px;
+  padding: 8px 10px;
   font-size: 0.9rem;
 }
 
 .bar {
   height: 8px;
-  background: var(--panel);
+  background: #11111c;
   border-radius: 999px;
   overflow: hidden;
 }
 
 .bar-fill { height: 100%; background: var(--accent); transition: width 0.2s; }
 
-.error { color: #ff7b7b; }
+.error { color: #ff7b7b; line-height: 1.6; }
