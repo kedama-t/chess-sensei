@@ -240,3 +240,107 @@ select {
 .bar-fill { height: 100%; background: var(--accent); transition: width 0.2s; }
 
 .error { color: #ff7b7b; line-height: 1.6; }
+
+/* ---- 感想戦（棋譜レビュー） ---- */
+.review {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.review-summaries {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+@media (max-width: 420px) {
+  .review-summaries { grid-template-columns: 1fr; }
+}
+
+.review-side {
+  background: #1c1c30;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.review-side-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.review-side-head strong {
+  font-size: 1.3rem;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.review-side .muted { margin: 2px 0 8px; }
+
+.review-counts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.review-counts li { font-size: 0.72rem; padding: 1px 8px; }
+
+.review-moves {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.review-moves li {
+  display: grid;
+  grid-template-columns: 2.6em 1fr 1fr;
+  gap: 4px;
+  align-items: center;
+}
+
+.review-no { color: var(--muted); font-size: 0.85rem; }
+
+.review-cell {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 6px;
+  padding: 6px 8px;
+  font-size: 0.9rem;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  text-align: left;
+}
+
+.review-cell:hover { background: #2a2a46; }
+.review-cell.selected { border-color: var(--accent); background: #2c2c4a; }
+
+.review-cell.q-inaccuracy .review-san { color: #e0b64a; }
+.review-cell.q-mistake .review-san { color: #ef9455; }
+.review-cell.q-blunder .review-san { color: #ff7b7b; }
+
+.review-loss { color: var(--muted); font-size: 0.78rem; }
+
+/* ---- コーチタブ（Stockfish の分析 + AI 解説） ---- */
+.coach-section {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #3a3a56;
+}
+
+.coach-section h3 {
+  margin: 0 0 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}

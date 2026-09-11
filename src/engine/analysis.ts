@@ -1,4 +1,4 @@
-import { Chess } from "chess.js";
+import { Chess, type Square } from "chess.js";
 import type { PvLine, Score, SearchResult } from "./uci";
 
 export type Color = "w" | "b";
@@ -120,6 +120,39 @@ export function classify(cpLoss: number, isBestMove: boolean): Quality {
   return "blunder";
 }
 
+/**
+ * 評価値を勝率(%)に変換する。Lichess が精度(Accuracy)の算出に使っている式。
+ * https://lichess.org/page/accuracy
+ */
+export function winPercent(cp: number): number {
+  const clamped = Math.max(-1000, Math.min(1000, cp));
+  return 50 + 50 * (2 / (1 + Math.exp(-0.00368208 * clamped)) - 1);
+}
+
+/**
+ * 1 手の精度(%)。勝率の落ち込みから算出する（Lichess と同じ係数）。
+ * 勝率が下がらなかった手は 100%。
+ */
+export function moveAccuracy(before: Score, after: Score, color: Color): number {
+  const sign = color === "w" ? 1 : -1;
+  const winBefore = winPercent(scoreToCp(before) * sign);
+  const winAfter = winPercent(scoreToCp(after) * sign);
+  if (winAfter >= winBefore) return 100;
+  const raw = 103.1668 * Math.exp(-0.04354 * (winBefore - winAfter)) - 3.1669;
+  return Math.max(0, Math.min(100, raw));
+}
+
+/** SAN の手を from / to のマス目に変換する（矢印表示用） */
+export function sanToSquares(fen: string, san: string | null): [Square, Square] | null {
+  if (!san) return null;
+  try {
+    const move = new Chess(fen).move(san);
+    return [move.from, move.to];
+  } catch {
+    return null;
+  }
+}
+
 const PIECE_JA: Record<string, string> = {
   p: "ポーン", n: "ナイト", b: "ビショップ", r: "ルーク", q: "クイーン", k: "キング",
 };
@@ -137,6 +170,8 @@ export type MoveReview = {
   quality: Quality;
   /** 最善手と比べて何センチポーン損したか */
   cpLoss: number;
+  /** この手の精度(%) */
+  accuracy: number;
   /** 手を指す前の評価値（白視点） */
   scoreBefore: Score;
   /** 手を指した後の評価値（白視点） */
@@ -195,6 +230,7 @@ export function buildReview(input: BuildReviewInput): MoveReview {
     moveNumber,
     quality: classify(cpLoss, isBest),
     cpLoss,
+    accuracy: moveAccuracy(scoreBefore, scoreAfter, color),
     scoreBefore,
     scoreAfter,
     bestSan,

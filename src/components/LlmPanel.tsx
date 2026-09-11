@@ -54,8 +54,10 @@ export function LlmPanel({ status, progress, error, onEnable, onDisable }: Props
   if (status === "ready") {
     return (
       <div className="llm-panel">
-        <p className="llm-line">🗣 AI 解説: 有効（Gemma がブラウザ内で解説文を作成）</p>
-        <button onClick={onDisable}>解説をエンジンの分析だけにする</button>
+        <p className="llm-line">
+          🗣 AI 解説: 有効（Stockfish の分析に続けて、Gemma がブラウザ内で解説文を作成）
+        </p>
+        <button onClick={onDisable}>AI 解説を止める（分析のみにする）</button>
       </div>
     );
   }
@@ -64,9 +66,9 @@ export function LlmPanel({ status, progress, error, onEnable, onDisable }: Props
     <div className="llm-panel">
       {status === "error" && <p className="error">AI 解説の読み込みに失敗しました: {error}</p>}
       <p className="llm-line">
-        解説はいま Stockfish の分析をそのまま表示しています。AI 解説を有効にすると、
-        同じ分析結果をやさしい日本語の文章で説明します（初回のみ約 2GB のモデルを
-        ダウンロード）。
+        いまは Stockfish の分析だけを表示しています。AI 解説を有効にすると、その下に
+        同じ分析結果をやさしい日本語で説明した文章が追加されます（初回のみ約 2GB の
+        モデルをダウンロード）。
       </p>
       <div className="llm-actions">
         <button className="primary" onClick={() => onEnable()}>
